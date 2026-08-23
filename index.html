@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>brimova — drug-name screening for everyone</title>
+<meta name="description" content="A free, open drug-name tool: generate candidate names into the sparsest regions of the namespace, and screen any name with rules plus a POCA-flavored similarity metric. Screened, never certified.">
+<meta property="og:title" content="brimova — drug-name screening for everyone">
+<meta property="og:description" content="Generate and screen candidate generic and brand drug names against naming rules and a look-alike sound-alike similarity metric. A screen, never a certification.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg fill='%239B9B9B'%3E%3Ccircle cx='12' cy='12' r='5'/%3E%3Ccircle cx='32' cy='12' r='5'/%3E%3Ccircle cx='52' cy='12' r='5'/%3E%3Ccircle cx='12' cy='32' r='5'/%3E%3Ccircle cx='32' cy='32' r='5'/%3E%3Ccircle cx='12' cy='52' r='5'/%3E%3C/g%3E%3Ccircle cx='47' cy='47' r='5.5' fill='%23E4572E'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1B1B1F; --paper:#FCFCFA; --lattice:#9B9B9B; --ember:#E4572E;
+  --line:#E5E4E0; --faint:#8B8B88; --plate:#F4F3EF;
+  --display:'Space Grotesk',sans-serif; --body:'IBM Plex Sans',sans-serif; --mono:'IBM Plex Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.65}
+a{color:var(--ember);text-decoration:none;border-bottom:1px solid transparent}
+a:hover{border-bottom-color:var(--ember)}
+:focus-visible{outline:2px solid var(--ember);outline-offset:2px;border-radius:2px}
+.wrap{max-width:880px;margin:0 auto;padding:0 24px}
+header{padding:72px 0 40px;text-align:center}
+.mark{width:180px;height:auto;display:block;margin:0 auto 28px}
+.mark .ember{opacity:0;transform:scale(.4);transform-origin:center;transform-box:fill-box;
+  animation:land .5s .45s cubic-bezier(.2,.8,.3,1.2) forwards}
+@keyframes land{to{opacity:1;transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.mark .ember{animation:none;opacity:1;transform:none}}
+h1{font-family:var(--display);font-weight:500;font-size:44px;letter-spacing:.42em;margin-right:-.42em;text-transform:lowercase}
+.tag{color:var(--faint);letter-spacing:.06em;margin-top:8px}
+h2{font-family:var(--display);font-weight:500;font-size:24px;letter-spacing:.02em;margin-bottom:14px}
+p+p{margin-top:12px}
+section{margin:56px 0}
+.screener{border:1px solid var(--ink);border-radius:10px;padding:28px;background:#fff}
+.modes{display:flex;gap:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;width:max-content;max-width:100%;margin-bottom:22px}
+.modes label{padding:8px 18px;cursor:pointer;font-family:var(--mono);font-size:14px;color:var(--faint);border-right:1px solid var(--line)}
+.modes label:last-child{border-right:0}
+.modes input{position:absolute;opacity:0;pointer-events:none}
+.modes label:has(input:checked){background:var(--plate);color:var(--ink)}
+.caps{border-color:var(--ink)}
+.caps label{padding:10px 22px;font-size:15px}
+.field{margin-bottom:18px}
+.field label{display:block;font-family:var(--mono);font-size:13px;color:var(--faint);margin-bottom:6px;letter-spacing:.04em}
+.field input,.field select{width:100%;font-family:var(--mono);font-size:16px;padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink)}
+.field input:focus,.field select:focus{border-color:var(--ink);outline:none}
+.field .hint{font-size:13px;color:var(--faint);margin-top:6px}
+#pairWrap,#gPairWrap,#gRouteWrap{display:none}
+button.go{font-family:var(--display);font-size:17px;letter-spacing:.06em;background:var(--ink);color:var(--paper);border:0;border-radius:8px;padding:13px 26px;cursor:pointer}
+button.go:hover{background:#000}
+.subnote{display:inline-block;margin-left:14px;font-family:var(--mono);font-size:12.5px;color:var(--faint)}
+#result,#genOut{margin-top:26px}
+.verdict{display:flex;align-items:center;gap:16px;padding:18px;border:1px solid var(--line);border-radius:8px;background:var(--paper)}
+.verdict svg{flex:0 0 64px}
+.verdict .v-title{font-family:var(--display);font-size:19px;letter-spacing:.02em}
+.verdict .v-sub{font-family:var(--mono);font-size:12.5px;color:var(--faint);margin-top:2px}
+.reasons{margin:16px 0 0;padding:0;list-style:none}
+.reasons li{padding:9px 0 9px 26px;border-top:1px solid var(--line);position:relative;font-size:15.5px}
+.reasons li::before{content:"";position:absolute;left:6px;top:17px;width:8px;height:8px;border-radius:50%;background:var(--lattice)}
+.reasons li.hard::before{background:var(--ember)}
+table.nn{width:100%;border-collapse:collapse;margin-top:18px;font-family:var(--mono);font-size:14px}
+table.nn th{text-align:left;font-weight:500;color:var(--faint);border-bottom:1px solid var(--ink);padding:6px 8px}
+table.nn td{border-bottom:1px solid var(--line);padding:7px 8px}
+table.nn td.pct{text-align:right}
+.meter{height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--lattice)}
+.meter i.hot{background:var(--ember)}
+.density{font-family:var(--mono);font-size:13.5px;color:var(--faint);margin-top:14px}
+.cRow{display:flex;align-items:center;gap:14px;padding:13px 4px;border-top:1px solid var(--line)}
+.cRow:first-child{border-top:0}
+.cRow .dot{flex:0 0 14px;width:14px;height:14px;border-radius:50%;background:var(--ember)}
+.cRow.caution .dot{background:var(--lattice)}
+.cRow .nm{font-family:var(--mono);font-size:18px;min-width:140px}
+.cRow .meta{font-family:var(--mono);font-size:12.5px;color:var(--faint);flex:1}
+.cRow button.mini{font-family:var(--mono);font-size:12px;background:none;border:1px solid var(--line);border-radius:6px;padding:6px 11px;cursor:pointer;color:var(--ink);white-space:nowrap}
+.cRow button.mini:hover{border-color:var(--ink)}
+.plate{border:1.5px solid var(--ink);border-radius:6px;padding:22px 24px;background:var(--plate);font-family:var(--mono);font-size:14px;line-height:1.8}
+.plate h3{font-family:var(--mono);font-weight:500;font-size:13px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:10px}
+.plate .col2{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+@media(max-width:640px){.plate .col2{grid-template-columns:1fr}h1{font-size:34px}.screener{padding:20px}.cRow{flex-wrap:wrap}}
+.plate ul{list-style:none}
+.plate li{padding-left:16px;position:relative}
+.plate li::before{content:"·";position:absolute;left:2px;color:var(--faint)}
+.plate .no li::before{content:"×";color:var(--ember)}
+.stamp{margin-top:14px;padding-top:10px;border-top:1px dashed var(--faint);color:var(--faint);font-size:12.5px}
+footer{margin-top:80px;border-top:1px solid var(--ink);padding:36px 0 56px;font-size:14px;color:var(--faint)}
+footer .motto{font-family:var(--display);color:var(--ink);font-size:16px;letter-spacing:.04em;margin-bottom:14px}
+.contact{font-family:var(--mono);font-size:14px}
+</style>
+</head>
+<body>
+
+<header class="wrap">
+  <svg class="mark" viewBox="0 0 350 350" role="img" aria-label="Brimova mark: a lattice of gray dots with one orange dot alone in an open region">
+    <g fill="#9B9B9B">
+      <circle cx="25" cy="25" r="9"/><circle cx="75" cy="25" r="9"/><circle cx="125" cy="25" r="9"/><circle cx="175" cy="25" r="9"/><circle cx="225" cy="25" r="9"/><circle cx="275" cy="25" r="9"/><circle cx="325" cy="25" r="9"/>
+      <circle cx="25" cy="75" r="9"/><circle cx="75" cy="75" r="9"/><circle cx="125" cy="75" r="9"/><circle cx="175" cy="75" r="9"/><circle cx="225" cy="75" r="9"/><circle cx="275" cy="75" r="9"/><circle cx="325" cy="75" r="9"/>
+      <circle cx="25" cy="125" r="9"/><circle cx="75" cy="125" r="9"/><circle cx="125" cy="125" r="9"/><circle cx="175" cy="125" r="9"/><circle cx="225" cy="125" r="9"/><circle cx="275" cy="125" r="9"/><circle cx="325" cy="125" r="9"/>
+      <circle cx="25" cy="175" r="9"/><circle cx="75" cy="175" r="9"/><circle cx="125" cy="175" r="9"/><circle cx="175" cy="175" r="9"/><circle cx="225" cy="175" r="9"/><circle cx="275" cy="175" r="9"/><circle cx="325" cy="175" r="9"/>
+      <circle cx="25" cy="225" r="9"/><circle cx="75" cy="225" r="9"/><circle cx="125" cy="225" r="9"/>
+      <circle cx="25" cy="275" r="9"/><circle cx="75" cy="275" r="9"/><circle cx="125" cy="275" r="9"/>
+      <circle cx="25" cy="325" r="9"/><circle cx="75" cy="325" r="9"/><circle cx="125" cy="325" r="9"/>
+    </g>
+    <circle class="ember" cx="275" cy="275" r="9.5" fill="#E4572E"/>
+  </svg>
+  <h1>brimova</h1>
+  <p class="tag">Drug-name screening for everyone</p>
+</header>
+
+<main class="wrap">
+
+<section id="tool">
+  <div class="screener">
+    <div class="modes caps" role="radiogroup" aria-label="Tool">
+      <label><input type="radio" name="cap" value="generate" checked><span>generate contenders</span></label>
+      <label><input type="radio" name="cap" value="screen"><span>screen a name</span></label>
+    </div>
+
+    <div id="panelGen">
+      <div class="modes" role="radiogroup" aria-label="Name tier">
+        <label><input type="radio" name="gmode" value="generic" checked><span>generic (INN/USAN)</span></label>
+        <label><input type="radio" name="gmode" value="brand"><span>brand (proprietary)</span></label>
+      </div>
+      <div class="field" id="gStemWrap">
+        <label for="gStem">pharmacologic class — sets the stem</label>
+        <select id="gStem"></select>
+        <div class="hint">The stem is the class-defining ending every generic in the family shares; distinctiveness lives in the prefix.</div>
+      </div>
+      <div class="field" id="gPairWrap">
+        <label for="gPair">paired generic name <span style="text-transform:none">(optional — enforces the shared-letters rule)</span></label>
+        <input id="gPair" type="text" autocomplete="off" spellcheck="false" placeholder="e.g. grelvazoline" maxlength="30">
+      </div>
+      <div class="field" id="gRouteWrap">
+        <label for="gRoute">route of administration</label>
+        <select id="gRoute">
+          <option value="">unspecified</option>
+          <option value="oral">oral</option>
+          <option value="nasal">nasal</option>
+          <option value="topical">topical</option>
+          <option value="injection">injection or infusion</option>
+          <option value="inhaled">inhaled</option>
+          <option value="ophthalmic">ophthalmic (eye)</option>
+          <option value="transdermal">transdermal (patch)</option>
+        </select>
+        <div class="hint">Route words may not appear in a name; declaring the route arms that screen.</div>
+      </div>
+      <div class="field">
+        <label for="gInd">indication — what it treats <span style="text-transform:none">(optional)</span></label>
+        <input id="gInd" type="text" autocomplete="off" spellcheck="false" placeholder="e.g. nasal congestion" maxlength="80">
+        <div class="hint">Names may not describe or promise the indication; these words are kept out.</div>
+      </div>
+      <div class="field">
+        <label>inspiration — words the name may echo <span style="text-transform:none">(optional, up to three)</span></label>
+        <div style="display:flex;gap:10px">
+          <input id="gIn1" type="text" autocomplete="off" spellcheck="false" placeholder="e.g. ocean" maxlength="15">
+          <input id="gIn2" type="text" autocomplete="off" spellcheck="false" placeholder="e.g. flower" maxlength="15">
+          <input id="gIn3" type="text" autocomplete="off" spellcheck="false" placeholder="e.g. peace" maxlength="15">
+        </div>
+        <div class="hint">Only the opening sound and vowel color are borrowed — a ballpark echo, never the word itself.</div>
+      </div>
+      <div class="field">
+        <label>tone</label>
+        <div class="modes" role="radiogroup" aria-label="Tone" style="margin-bottom:0">
+          <label><input type="radio" name="gtone" value="exec" checked><span>executive &amp; clinical</span></label>
+          <label><input type="radio" name="gtone" value="sooth"><span>gentle &amp; soothing</span></label>
+        </div>
+      </div>
+      <button class="go" id="genBtn">Generate contenders</button>
+      <span class="subnote">contenders, never clearances</span>
+      <div id="genOut" aria-live="polite"></div>
+    </div>
+
+    <div id="panelScreen" style="display:none">
+      <div class="modes" role="radiogroup" aria-label="Screening mode">
+        <label><input type="radio" name="mode" value="generic" checked><span>generic (INN/USAN)</span></label>
+        <label><input type="radio" name="mode" value="brand"><span>brand (proprietary)</span></label>
+      </div>
+      <div class="field">
+        <label for="cand">candidate name</label>
+        <input id="cand" type="text" autocomplete="off" spellcheck="false" placeholder="e.g. brenazoline" maxlength="30">
+        <div class="hint" id="candHint">Generic names are screened for INN/USAN letter rules, syllable budget, embedded stems, and similarity.</div>
+      </div>
+      <div class="field" id="pairWrap">
+        <label for="pair">paired generic name <span style="text-transform:none">(optional — enables the shared-letters rule)</span></label>
+        <input id="pair" type="text" autocomplete="off" spellcheck="false" placeholder="e.g. grelvazoline" maxlength="30">
+      </div>
+      <button class="go" id="goBtn">Screen this name</button>
+      <span class="subnote">a screen, never a certification</span>
+      <div id="result" aria-live="polite"></div>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <h2>How it works</h2>
+  <p>The generator inverts the traditional process. Instead of inventing hopefuls and testing them afterward, it declares the constraints first — class stem, route, indication, tone — then composes hundreds of law-abiding candidates and keeps only the ones born farthest from every existing name. Tone is sound symbolism put to work: plosives and closed syllables read as clinical authority; liquids, nasals, and open vowels read as gentle. Every candidate then runs the same three screening passes, entirely in your browser — nothing you type leaves this page.</p>
+  <p>The passes: first, the written rules — syllable budgets, the INN aversion to letters that travel badly (H, J, K, W, Y), embedded pharmacological stems, digits, and words that promise outcomes or smuggle in routes and anatomy. Second, a POCA-flavored similarity screen — orthographic and phonetic distance combined, in the spirit of the FDA's own <a href="https://www.fda.gov/drugs/resources-information-approved-drugs/phonetic-and-orthographic-computer-analysis-poca-program" rel="noopener">POCA program</a>, which the agency distributes free — against every name in the corpus. Third, a density reading: how many existing names sit within a 45% similarity radius. A good name is not merely unclaimed; it is <em>isolated</em>. The orange dot in the mark is a name with density zero — that is the entire doctrine, drawn.</p>
+  <p>Verdicts come in three shapes. A collision fails. A caution passes with its flags shown. A clean screen is exactly that — a strong contender for the human process that follows, never a substitute for it.</p>
+</section>
+
+<section id="coverage">
+  <h2>Coverage and limits</h2>
+  <div class="plate">
+    <div class="col2">
+      <div>
+        <h3>Screened against</h3>
+        <ul>
+          <li>Demonstration corpus: ~300 widely known US generic and brand names</li>
+          <li>Representative subset of USAN/INN pharmacological stems (37 of ~600)</li>
+          <li>Rule set: INN letter guidance, syllable budgets, FDA proprietary-name best practices</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Not screened against</h3>
+        <ul class="no">
+          <li>The full Drugs@FDA, WHO INN, or EMA registries</li>
+          <li>150+ national medicine registries</li>
+          <li>USPTO, WIPO, or any trademark database</li>
+          <li>Unregistered common-law marks</li>
+          <li>Private pipelines and pending applications</li>
+          <li>Meaning in other languages</li>
+        </ul>
+      </div>
+    </div>
+    <p class="stamp">Corpus data date: August 2026 · Verify finalists at <a href="https://www.accessdata.fda.gov/scripts/cder/daf/" rel="noopener">Drugs@FDA</a>, <a href="https://mednet-communities.net/inn/" rel="noopener">WHO INN</a>, <a href="https://tmsearch.uspto.gov/" rel="noopener">USPTO</a>, <a href="https://branddb.wipo.int/" rel="noopener">WIPO</a>, and the <a href="https://www.ismp.org/recommendations/confused-drug-names-list" rel="noopener">ISMP confused-names list</a></p>
+  </div>
+</section>
+
+<section id="about">
+  <h2>About</h2>
+  <p>Brimova is not a medicine. It was the first clean name this screening engine ever produced — coined into the sparsest region its own metric could find — and so the tool's firstborn became the tool's name. In Rome, the <em>nomenclator</em> was the servant who stood at his master's elbow and whispered the names of approaching citizens, so that no one was ever misaddressed. This is that servant, rebuilt in JavaScript. Look-alike, sound-alike drug names injure over a million people a year; the professionals who screen against that are expensive, and most of the world's naming happens without them. This page is for everyone else.</p>
+  <p>The code is open source and runs entirely client-side. Found a collision this screen should have caught? That is the most valuable mail this project can receive: <span class="contact"><a href="mailto:collisions@brimova.org">collisions@brimova.org</a></span>. Security reports: <span class="contact"><a href="mailto:security@brimova.org">security@brimova.org</a></span>. Everything else: <span class="contact"><a href="mailto:info@brimova.org">info@brimova.org</a></span>.</p>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p class="motto">Screened, never certified.</p>
+    <p>Brimova is an educational screening aid built on public data. Results are not legal or regulatory advice, do not constitute trademark clearance or regulatory approval, and carry no warranty of any kind. Name screening for actual pharmaceutical use requires qualified counsel, official databases, and the formal USAN, INN, and FDA review processes. Verify any candidate through official channels.</p>
+    <p style="margin-top:10px">© 2026 brimova.org · Brimova is not a medicine.</p>
+  </div>
+</footer>
+
+<script>
+/* ---------- demonstration corpus (edit freely; one name per token) ---------- */
+const CORPUS = [...new Set(`ibuprofen acetaminophen paracetamol diphenhydramine loratadine cetirizine fexofenadine azelastine
+olopatadine oxymetazoline xylometazoline naphazoline tetryzoline tramazoline phenylephrine pseudoephedrine
+fluticasone mometasone budesonide prednisone hydrocortisone amoxicillin azithromycin ciprofloxacin levofloxacin
+doxycycline metronidazole fluconazole ketoconazole clotrimazole sertraline fluoxetine paroxetine escitalopram
+citalopram venlafaxine duloxetine bupropion amitriptyline nortriptyline mirtazapine trazodone alprazolam lorazepam
+diazepam clonazepam zolpidem lisinopril enalapril ramipril losartan valsartan olmesartan amlodipine nifedipine
+diltiazem verapamil metoprolol atenolol propranolol carvedilol atorvastatin simvastatin rosuvastatin pravastatin
+metformin glipizide glyburide sitagliptin empagliflozin dapagliflozin semaglutide liraglutide tirzepatide warfarin
+apixaban rivaroxaban clopidogrel omeprazole esomeprazole pantoprazole lansoprazole famotidine ondansetron
+sumatriptan rizatriptan gabapentin pregabalin levetiracetam lamotrigine topiramate levothyroxine tamsulosin
+finasteride sildenafil tadalafil montelukast albuterol salbutamol tiotropium ipratropium hydroxyzine hydralazine
+meclizine promethazine methotrexate adalimumab infliximab rituximab trastuzumab pembrolizumab nivolumab imatinib
+erlotinib osimertinib palbociclib olaparib oseltamivir acyclovir valacyclovir tenofovir emtricitabine dolutegravir
+hydrochlorothiazide furosemide spironolactone tramadol oxycodone hydrocodone morphine fentanyl naloxone
+buprenorphine ketamine lidocaine epinephrine naproxen celecoxib meloxicam colchicine allopurinol clonidine
+digoxin dornase brimonidine advil motrin tylenol benadryl claritin zyrtec allegra astepro patanase afrin otrivin
+visine sudafed flonase nasonex nasacort rhinocort zoloft prozac paxil lexapro celexa cerebyx effexor cymbalta
+wellbutrin elavil remeron xanax ativan valium klonopin ambien lunesta prinivil zestril vasotec cozaar diovan
+benicar norvasc procardia cardizem dilacor calan lopressor toprol tenormin inderal coreg lipitor zocor crestor
+pravachol glucophage glucotrol januvia jardiance farxiga ozempic wegovy rybelsus victoza saxenda mounjaro zepbound
+lantus levemir novolog novolin humalog humulin coumadin eliquis xarelto plavix taxol prilosec nexium protonix
+prevacid pepcid zofran imitrex maxalt neurontin lyrica keppra lamictal lamisil topamax synthroid flomax proscar
+propecia viagra cialis levitra singulair ventolin proair proventil spiriva atrovent vistaril antivert phenergan
+trexall humira remicade rituxan herceptin keytruda opdivo gleevec tarceva tagrisso ibrance lynparza tamiflu
+zovirax valtrex viread truvada tivicay biktarvy microzide lasix aldactone ultram oxycontin percocet vicodin
+narcan suboxone xylocaine aleve celebrex mobic colcrys zyloprim tricor zetia vytorin cordarone lanoxin pacerone
+toradol tegretol zantac prolia fosamax boniva evista premarin qelbree qulipta zeposia onzetra detrol vandetanib
+lucentis mirvaso renvela tresiba`.trim().split(/\s+/))].sort();
+
+/* representative subset of USAN/INN stems (~600 exist) */
+const STEMS = ["cillin","conazole","triptyline","sartan","statin","prazole","oxetine","azepam","dipine","floxacin",
+"cycline","gliptin","gliflozin","glutide","mycin","micin","profen","coxib","caine","tinib","ciclib","parib",
+"zumab","ximab","navir","ciclovir","olol","pril","triptan","setron","azoline","azosin","lukast","tadine"];
+const END_STEMS = ["tide","mab","vir"];
+const CLAIMS = ["safe","sure","cure","guard","rapid","fast","free","best","pure","clar","breez","breath","mist",
+"spray","nasal","nose","nez","naz","oral","derm","turbin","sinu","left","ultra","max","air","flow","day","nite","night"];
+
+const STEM_LABELS = {
+  azoline:"nasal decongestants / antihistamines (imidazoline)", olol:"beta blockers (heart, blood pressure)",
+  pril:"ACE inhibitors (blood pressure)", sartan:"angiotensin blockers (blood pressure)",
+  statin:"cholesterol (HMG-CoA)", dipine:"calcium-channel blockers", prazole:"acid reducers (PPIs)",
+  oxetine:"antidepressants (reuptake inhibitors)", triptyline:"tricyclic antidepressants",
+  azepam:"benzodiazepines (anxiety, sedation)", triptan:"migraine agents", setron:"anti-nausea (5-HT3)",
+  caine:"local anesthetics", profen:"anti-inflammatories (ibuprofen family)", coxib:"COX-2 anti-inflammatories",
+  cillin:"penicillin antibiotics", floxacin:"fluoroquinolone antibiotics", cycline:"tetracycline antibiotics",
+  mycin:"antibiotics (streptomyces-derived)", micin:"antibiotics (micromonospora-derived)",
+  conazole:"antifungals (azole)", ciclovir:"antivirals (herpes family)", vir:"antivirals (general)",
+  navir:"HIV protease inhibitors", gliptin:"type 2 diabetes (DPP-4)", gliflozin:"type 2 diabetes (SGLT2)",
+  glutide:"GLP-1 agonists (diabetes, weight)", tide:"peptides", mab:"monoclonal antibodies",
+  zumab:"humanized monoclonal antibodies", ximab:"chimeric monoclonal antibodies",
+  tinib:"kinase inhibitors (oncology)", ciclib:"CDK inhibitors (oncology)", parib:"PARP inhibitors (oncology)",
+  azosin:"alpha blockers", lukast:"leukotriene antagonists (asthma, allergy)", tadine:"antihistamines"
+};
+const ROUTE_BANS = { oral:["ora","oro","bucc"], nasal:["nas","rhin","naz","nez","nos"], topical:["derm","cutan"],
+  injection:["ject","inject"], inhaled:["inhal","pulm","aero"], ophthalmic:["ocu","ophth","opti"], transdermal:["derm","patch"] };
+
+/* ---------- POCA-flavored engine ---------- */
+const syll = s => Math.max(1,(s.match(/[aeiouy]+/g)||[]).length);
+const grams = (s,n=2)=>{const g=new Set();for(let i=0;i<=s.length-n;i++)g.add(s.slice(i,i+n));return g};
+const dice = (a,b)=>{const A=grams(a),B=grams(b);if(!A.size||!B.size)return 0;
+  let inter=0;for(const g of A)if(B.has(g))inter++;return 2*inter/(A.size+B.size)};
+const lev = (a,b)=>{const m=Array.from({length:a.length+1},(_,i)=>[i,...Array(b.length).fill(0)]);
+  for(let j=0;j<=b.length;j++)m[0][j]=j;
+  for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)
+    m[i][j]=Math.min(m[i-1][j]+1,m[i][j-1]+1,m[i-1][j-1]+(a[i-1]!==b[j-1]?1:0));
+  return m[a.length][b.length]};
+const phon = s=>{s=s.toLowerCase().replace(/[^a-z]/g,"")
+  .replace(/ph/g,"f").replace(/wr/g,"r").replace(/wh/g,"w").replace(/ck/g,"k")
+  .replace(/c(?=[eiy])/g,"s").replace(/c/g,"k").replace(/q/g,"k").replace(/x/g,"ks").replace(/z/g,"s");
+  if(!s)return s;
+  const first=s[0];let rest=s.slice(1).replace(/[aeiouy]/g,"");
+  return (first+rest).replace(/(.)\1+/g,"$1")};
+const sim = (a,b)=>{
+  const o=.5*dice(a,b)+.5*(1-lev(a,b)/Math.max(a.length,b.length));
+  const pa=phon(a),pb=phon(b);
+  const p=.5*dice(pa,pb)+.5*(1-lev(pa,pb)/Math.max(pa.length,pb.length,1));
+  return .5*o+.5*p};
+const screenCorpus = name=>{
+  const scored=CORPUS.filter(c=>c!==name).map(c=>({name:c,s:sim(name,c)})).sort((x,y)=>y.s-x.s);
+  return {top:scored.slice(0,5),density:scored.filter(r=>r.s>=.45).length}};
+const stemHits=(s,allowTerminal)=>{
+  const hits=STEMS.filter(t=>s.includes(t)&&!(allowTerminal&&s.endsWith(allowTerminal)&&t===allowTerminal));
+  for(const t of END_STEMS)if(s.endsWith(t)&&!(allowTerminal&&allowTerminal.endsWith(t)))hits.push("-"+t);
+  return hits};
+
+function checkGeneric(n){
+  const hard=[],soft=[];
+  const terminal=STEMS.find(t=>n.endsWith(t));
+  if(terminal)soft.push({t:`Recognized stem "-${terminal}" — the class-defining ending stays; distinctiveness must live in the prefix.`,info:1});
+  else soft.push({t:"No recognized USAN/INN stem ending (subset of 37 checked). Real generics end in a class stem — confirm yours against the full AMA/WHO stem list."});
+  const bad=[...new Set(n.split("").filter(c=>"hjkwy".includes(c)))];
+  if(bad.length)hard.push(`Contains ${bad.join(", ").toUpperCase()} — letters the INN program avoids because they are silent or absent in major world languages.`);
+  const sy=syll(n);
+  if(sy>5)hard.push(`${sy} syllables — INN/USAN guidance wants at most five, ideally fewer.`);
+  const emb=stemHits(n,terminal);
+  if(emb.length)hard.push(`Embeds other pharmacological stem(s): ${emb.join(", ")} — a name may carry only its own class stem.`);
+  if(/^lev/.test(n))hard.push(`Begins with "lev-", which falsely implies a levorotatory isomer — stereochemistry prefixes carry real chemical meaning.`);
+  if(/^dex/.test(n))hard.push(`Begins with "dex-", which falsely implies a dextrorotatory isomer.`);
+  for(const w of ["sinistr","nostr","rhin","nas"])if(n.includes(w))hard.push(`Contains "${w}" — anatomical or marketing content is not allowed in a generic name.`);
+  return {hard,soft};
+}
+function checkBrand(n,g){
+  const hard=[],soft=[];
+  if(n.length<5||n.length>9)hard.push(`${n.length} letters — FDA best practice favors five to nine.`);
+  const sy=syll(n);
+  if(sy<2||sy>4)hard.push(`${sy} syllable${sy===1?"":"s"} — best practice favors two to four.`);
+  if(/\d/.test(n))hard.push("Contains digits — numbers get mistaken for doses or dropped in speech.");
+  const emb=stemHits(n,null);
+  if(emb.length)hard.push(`Contains USAN stem(s): ${emb.join(", ")} — brand names may not carry pharmacological stems.`);
+  const cl=CLAIMS.filter(c=>n.includes(c));
+  if(cl.length)hard.push(`Contains "${cl.join('", "')}" — implied claims, routes, dosing, or anatomy are not allowed.`);
+  if(g){
+    const g4=new Set();for(let i=0;i<=g.length-4;i++)g4.add(g.slice(i,i+4));
+    const ov=[];for(let i=0;i<=n.length-4;i++){const q=n.slice(i,i+4);if(g4.has(q)&&!ov.includes(q))ov.push(q)}
+    if(ov.length)hard.push(`Shares more than three consecutive letters with the generic ("${ov.join('", "')}").`);
+  } else soft.push({t:"No paired generic given — the shared-letters rule was skipped."});
+  return {hard,soft};
+}
+
+/* ---------- contender generator ---------- */
+const BANKS = {
+  exec: { on:["b","br","c","cr","d","dr","g","gr","p","pr","t","tr","v","x","z","st"],
+          nu:["a","e","i","o"], mid:["c","d","g","l","n","r","s","t","x","z"],
+          tail:["vex","dex","tor","dor","zor","dax","rax","cor","tar","zon","trax","tron","var","vant","drex","tez"] },
+  sooth:{ on:["l","m","n","r","s","v","f","sel","mel","del","lor","mar","nel","ser","lav","min"],
+          nu:["a","e","i","o","u"], mid:["l","m","n","r","s","v"],
+          tail:["mova","lora","vena","mira","lina","vela","mona","sona","nia","lia","rena","nara","mera","lessa","vora","sela"] }
+};
+const rnd = a => a[Math.floor(Math.random()*a.length)];
+const INN_SAFE = {h:"",j:"g",k:"c",w:"v",y:"i"};
+function inspSeed(word, generic){
+  let s=(word||"").toLowerCase().replace(/[^a-z]/g,"");
+  if(generic) s=s.split("").map(c=>INN_SAFE[c]!==undefined?INN_SAFE[c]:c).join("");
+  const m=s.match(/^([^aeiou]{0,2})([aeiou])/);
+  if(!m)return null;
+  return {on:m[1], nu:m[2], vowels:[...new Set(s.match(/[aeiou]/g)||[])]};
+}
+function composeGeneric(B, stem, seed){
+  const nu=()=> (seed&&seed.vowels.length&&Math.random()<.5)? rnd(seed.vowels) : rnd(B.nu);
+  const on1=seed? seed.on : rnd(B.on);
+  const nu1=seed? seed.nu : nu();
+  const p = Math.random();
+  let pre;
+  if(p<.3) pre = on1+nu1;
+  else if(p<.65) pre = on1+nu1+rnd(B.mid);
+  else pre = on1+nu1+rnd(B.on)+nu();
+  if(stem && /[aeiou]$/.test(pre) && /^[aeiou]/.test(stem)) pre += rnd(B.mid);
+  return pre + stem;
+}
+function composeBrand(B, seed){
+  const nu=()=> (seed&&seed.vowels.length&&Math.random()<.5)? rnd(seed.vowels) : rnd(B.nu);
+  const on1=seed? seed.on : rnd(B.on);
+  const nu1=seed? seed.nu : nu();
+  if(Math.random()<.55) return on1+nu1+rnd(B.mid)+nu()+rnd(B.tail);
+  return on1+nu1+rnd(B.tail);
+}
+function extraBans(indication, route){
+  const bans = [];
+  if(route && ROUTE_BANS[route]) bans.push(...ROUTE_BANS[route]);
+  const words = (indication||"").toLowerCase().match(/[a-z]{4,}/g)||[];
+  for(const w of words){ bans.push(w); if(w.length>4) bans.push(w.slice(0,4)); }
+  return [...new Set(bans)];
+}
+function generateContenders(opts){
+  const B = BANKS[opts.tone]||BANKS.exec;
+  const isBrand = opts.mode==="brand";
+  const stem = isBrand? null : (opts.stem||"");
+  const bans = extraBans(opts.indication, isBrand? opts.route : "");
+  const seeds = (opts.insp||[]).filter(Boolean);
+  const seen = new Set(), out = [];
+  const corpusSet = new Set(CORPUS);
+  const thresh = isBrand? .60 : .62;
+  for(let i=0;i<1400 && out.length<160;i++){
+    const seed = seeds.length && Math.random()<.7 ? seeds[i%seeds.length] : null;
+    const n = isBrand? composeBrand(B, seed) : composeGeneric(B, stem, seed);
+    if(seen.has(n)||corpusSet.has(n))continue;
+    seen.add(n);
+    if(bans.some(b=>n.includes(b)))continue;
+    const checks = isBrand? checkBrand(n, opts.pair||null) : checkGeneric(n);
+    if(checks.hard.length)continue;
+    out.push(n);
+  }
+  const scored = out.map(n=>{
+    const {top,density}=screenCorpus(n);
+    return {name:n, near:top[0].name, s:top[0].s, density};
+  }).filter(r=>r.s<thresh);
+  scored.sort((a,b)=> a.s-b.s || a.density-b.density);
+  return scored.slice(0,8).map(r=>({...r, caution: r.s>=thresh-.08 || r.density>3}));
+}
+
+/* ---------- verdict glyphs, drawn in the mark's language ---------- */
+const glyph = kind=>{
+  if(kind==="fail")return `<svg viewBox="0 0 64 64" width="64" height="64" aria-hidden="true"><circle cx="27" cy="32" r="11" fill="#9B9B9B"/><circle cx="38" cy="32" r="11" fill="#E4572E" fill-opacity=".85"/></svg>`;
+  if(kind==="caution")return `<svg viewBox="0 0 64 64" width="64" height="64" aria-hidden="true"><circle cx="20" cy="32" r="10" fill="#9B9B9B"/><circle cx="45" cy="32" r="10.5" fill="#E4572E"/></svg>`;
+  return `<svg viewBox="0 0 64 64" width="64" height="64" aria-hidden="true"><circle cx="14" cy="18" r="6" fill="#9B9B9B"/><circle cx="30" cy="14" r="6" fill="#9B9B9B"/><circle cx="14" cy="34" r="6" fill="#9B9B9B"/><circle cx="46" cy="44" r="6.5" fill="#E4572E"/></svg>`;
+};
+
+/* ---------- UI ---------- */
+if (typeof document !== "undefined") {
+const $=id=>document.getElementById(id);
+const clean=v=>v.toLowerCase().replace(/[^a-z0-9]/g,"");
+
+const stemSel = $("gStem");
+let stemOpts = `<option value="">no stem yet / other class</option>`;
+for(const s of [...STEMS].sort()) stemOpts += `<option value="${s}">-${s} — ${STEM_LABELS[s]||"(class stem)"}</option>`;
+stemSel.innerHTML = stemOpts;
+stemSel.value = "azoline";
+
+document.querySelectorAll('input[name=cap]').forEach(r=>r.addEventListener("change",()=>{
+  const gen = document.querySelector('input[name=cap]:checked').value==="generate";
+  $("panelGen").style.display = gen? "block":"none";
+  $("panelScreen").style.display = gen? "none":"block";
+}));
+document.querySelectorAll('input[name=gmode]').forEach(r=>r.addEventListener("change",()=>{
+  const brand=document.querySelector('input[name=gmode]:checked').value==="brand";
+  $("gStemWrap").style.display=brand?"none":"block";
+  $("gPairWrap").style.display=brand?"block":"none";
+  $("gRouteWrap").style.display=brand?"block":"none";
+  $("genOut").innerHTML="";
+}));
+document.querySelectorAll('input[name=mode]').forEach(r=>r.addEventListener("change",()=>{
+  const brand=document.querySelector('input[name=mode]:checked').value==="brand";
+  $("pairWrap").style.display=brand?"block":"none";
+  $("cand").placeholder=brand?"e.g. brimova":"e.g. brenazoline";
+  $("candHint").textContent=brand
+    ?"Brand names are screened for FDA best-practice length and syllables, stems, claims, shared letters with the generic, and similarity."
+    :"Generic names are screened for INN/USAN letter rules, syllable budget, embedded stems, and similarity.";
+  $("result").innerHTML="";
+}));
+
+$("genBtn").addEventListener("click",()=>{
+  const mode=document.querySelector('input[name=gmode]:checked').value;
+  const opts={ mode, tone:document.querySelector('input[name=gtone]:checked').value,
+    stem: stemSel.value, pair: clean($("gPair").value.trim()),
+    route: $("gRoute").value, indication: $("gInd").value.trim(),
+    insp: [$("gIn1").value,$("gIn2").value,$("gIn3").value].map(v=>inspSeed(v, mode==="generic")) };
+  $("genOut").innerHTML=`<p class="density">composing into the sparse regions…</p>`;
+  setTimeout(()=>{
+    const rows=generateContenders(opts);
+    if(!rows.length){$("genOut").innerHTML=`<p class="density">The constraints closed every path this draw — press Generate again for a fresh batch, or loosen a field.</p>`;return}
+    let html = rows.map(r=>`<div class="cRow${r.caution?" caution":""}">
+      <span class="dot" aria-hidden="true"></span>
+      <span class="nm">${r.name}</span>
+      <span class="meta">nearest: ${r.near} ${(r.s*100).toFixed(0)}% · density ${r.density}${r.caution?" · caution — inspect":""}</span>
+      <button class="mini" data-n="${r.name}" data-m="${mode}" data-p="${opts.pair||""}">full screen</button>
+    </div>`).join("");
+    html += `<p class="density">Ranked most-isolated first · a fresh batch every press · corpus: ${CORPUS.length} names · contenders, never clearances</p>`;
+    $("genOut").innerHTML=html;
+    document.querySelectorAll('#genOut button.mini').forEach(b=>b.addEventListener("click",()=>{
+      document.querySelector('input[name=cap][value=screen]').checked=true;
+      $("panelGen").style.display="none";$("panelScreen").style.display="block";
+      const m=b.dataset.m;
+      document.querySelector(`input[name=mode][value=${m}]`).checked=true;
+      $("pairWrap").style.display=m==="brand"?"block":"none";
+      $("cand").value=b.dataset.n; $("pair").value=b.dataset.p;
+      run(); $("result").scrollIntoView({behavior:"smooth",block:"center"});
+    }));
+  },30);
+});
+
+$("goBtn").addEventListener("click",run);
+$("cand").addEventListener("keydown",e=>{if(e.key==="Enter")run()});
+$("pair").addEventListener("keydown",e=>{if(e.key==="Enter")run()});
+
+function run(){
+  const raw=$("cand").value.trim();
+  const n=clean(raw);
+  const R=$("result");
+  if(!n){R.innerHTML=`<p style="font-family:var(--mono);font-size:14px;color:var(--faint);margin-top:14px">Type a candidate name first.</p>`;return}
+  const mode=document.querySelector('input[name=mode]:checked').value;
+  const g=mode==="brand"?clean($("pair").value.trim()):null;
+  const checks=mode==="brand"?checkBrand(n,g):checkGeneric(n);
+  const {top,density}=screenCorpus(n);
+  const thresh=mode==="brand"?.60:.62;
+  if(top[0].s>=thresh)checks.hard.push(`Too close to existing "${top[0].name}" — ${(top[0].s*100).toFixed(0)}% combined similarity.`);
+  const kind=checks.hard.length?"fail":(checks.soft.some(s=>!s.info)||density>3||top[0].s>=thresh-.08?"caution":"pass");
+  const title=kind==="fail"?"Collision — this name fails screening"
+    :kind==="caution"?"Screened with cautions"
+    :"No collisions found in the demonstration corpus";
+  const sub=kind==="fail"?"back to the generator"
+    :kind==="caution"?"a contender with flags — read them"
+    :"a strong contender, not a clearance";
+  let html=`<div class="verdict">${glyph(kind)}<div><div class="v-title">${title}</div><div class="v-sub">${n} · ${sub}</div></div></div>`;
+  const items=[...checks.hard.map(t=>({t,hard:1})),...checks.soft];
+  if(items.length)html+=`<ul class="reasons">${items.map(i=>`<li${i.hard?' class="hard"':''}>${i.t}</li>`).join("")}</ul>`;
+  html+=`<table class="nn"><thead><tr><th>nearest existing names</th><th style="width:44%">similarity</th><th class="pct">score</th></tr></thead><tbody>`;
+  for(const r of top){const pct=(r.s*100).toFixed(0);
+    html+=`<tr><td>${r.name}</td><td><div class="meter"><i${r.s>=thresh?' class="hot"':''} style="width:${pct}%"></i></div></td><td class="pct">${pct}%</td></tr>`}
+  html+=`</tbody></table>`;
+  html+=`<p class="density">density: ${density} corpus name${density===1?"":"s"} within a 45% radius · corpus: ${CORPUS.length} names · similarity is POCA-flavored, not POCA</p>`;
+  R.innerHTML=html;
+}
+}
+</script>
+</body>
+</html>
